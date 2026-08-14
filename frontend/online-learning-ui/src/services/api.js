@@ -21,13 +21,20 @@ API.interceptors.response.use(
       original._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          localStorage.clear();
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
         const { data } = await axios.post(
           `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
           { refreshToken }
         );
-        localStorage.setItem('accessToken', data.data.accessToken);
+        const newToken = data.data.accessToken;
+        localStorage.setItem('accessToken', newToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
+        original.headers.Authorization = `Bearer ${newToken}`;
+        API.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
         return API(original);
       } catch {
         localStorage.clear();

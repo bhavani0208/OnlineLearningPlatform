@@ -11,6 +11,8 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import MyCourses from './pages/student/MyCourses';
 import InstructorDashboard from './pages/instructor/Dashboard';
+import CreateCourse from './pages/instructor/CreateCourse';
+import ManageCourse from './pages/instructor/ManageCourse';
 import AdminDashboard from './pages/admin/Dashboard';
 
 function App() {
@@ -33,6 +35,8 @@ function App() {
         {/* Instructor protected routes */}
         <Route element={<ProtectedRoute allowedRoles={['instructor', 'admin']} />}>
           <Route path="instructor/dashboard" element={<InstructorDashboard />} />
+          <Route path="instructor/create-course" element={<CreateCourse />} />
+          <Route path="instructor/courses/:id/manage" element={<ManageCourse />} />
         </Route>
 
         {/* Admin protected routes */}

@@ -30,7 +30,7 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
  *       201:
  *         description: Razorpay order created
  */
-router.post('/create-order', authenticate, authorize('student'), createOrder);
+router.post('/create-order', authenticate, createOrder);
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ router.post('/create-order', authenticate, authorize('student'), createOrder);
  *       200:
  *         description: Payment verified and enrollment created
  */
-router.post('/verify', authenticate, authorize('student'), verifyPayment);
+router.post('/verify', authenticate, verifyPayment);
 
 /**
  * @swagger

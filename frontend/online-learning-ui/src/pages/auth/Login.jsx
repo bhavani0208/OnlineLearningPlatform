@@ -21,9 +21,9 @@ const Login = () => {
     if (loginUser.fulfilled.match(result)) {
       toast.success('Login successful!');
       const role = result.payload.user.role;
-      if (role === 'instructor') navigate('/instructor/dashboard');
-      else if (role === 'admin') navigate('/admin/dashboard');
-      else navigate('/');
+      if (role === 'instructor') window.location.href = '/instructor/dashboard';
+      else if (role === 'admin') window.location.href = '/admin/dashboard';
+      else window.location.href = '/';
     }
   };
 

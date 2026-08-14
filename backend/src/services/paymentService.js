@@ -9,27 +9,30 @@ const razorpay = new Razorpay({
 });
 
 const createOrder = async (courseId, userId) => {
-  // Check if course exists
   const course = await Course.findByPk(courseId);
   if (!course) throw new Error('Course not found');
 
-  // Check if already enrolled
   const existingEnrollment = await Enrollment.findOne({ where: { userId, courseId } });
   if (existingEnrollment) throw new Error('Already enrolled in this course');
 
-  // Amount in paise (Razorpay uses smallest currency unit)
   const amount = Math.round(course.price * 100);
 
-  // Create Razorpay order
-  const razorpayOrder = await razorpay.orders.create({
-    amount,
-    currency: 'INR',
-    receipt: `receipt_${Date.now()}`,
-  });
+  // Use real Razorpay if keys are available, otherwise use mock
+  let razorpayOrderId;
+  if (process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.includes('dummy') && !process.env.RAZORPAY_KEY_ID.includes('test_1DP5')) {
+    const razorpayOrder = await razorpay.orders.create({
+      amount,
+      currency: 'INR',
+      receipt: `receipt_${Date.now()}`,
+    });
+    razorpayOrderId = razorpayOrder.id;
+  } else {
+    // Mock order ID for development
+    razorpayOrderId = `order_mock_${Date.now()}`;
+  }
 
-  // Save order in DB
   const order = await Order.create({
-    razorpayOrderId: razorpayOrder.id,
+    razorpayOrderId,
     amount: course.price,
     currency: 'INR',
     status: 'created',
@@ -38,34 +41,33 @@ const createOrder = async (courseId, userId) => {
   });
 
   return {
-    orderId: razorpayOrder.id,
-    amount: razorpayOrder.amount,
-    currency: razorpayOrder.currency,
+    orderId: razorpayOrderId,
+    amount,
+    currency: 'INR',
     courseTitle: course.title,
     dbOrderId: order.id,
+    isMock: razorpayOrderId.includes('mock'),
   };
 };
 
 const verifyPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySignature, userId }) => {
-  // Verify signature
-  const body = razorpayOrderId + '|' + razorpayPaymentId;
-  const expectedSignature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(body)
-    .digest('hex');
-
-  if (expectedSignature !== razorpaySignature) {
-    throw new Error('Payment verification failed');
+  // Skip signature verification for mock orders
+  if (!razorpayOrderId.includes('mock')) {
+    const body = razorpayOrderId + '|' + razorpayPaymentId;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest('hex');
+    if (expectedSignature !== razorpaySignature) {
+      throw new Error('Payment verification failed');
+    }
   }
 
-  // Find order in DB
   const order = await Order.findOne({ where: { razorpayOrderId } });
   if (!order) throw new Error('Order not found');
 
-  // Update order status
   await order.update({ status: 'paid' });
 
-  // Create payment record
   await Payment.create({
     razorpayPaymentId,
     razorpaySignature,
@@ -75,13 +77,11 @@ const verifyPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySigna
     orderId: order.id,
   });
 
-  // Create enrollment
   const enrollment = await Enrollment.create({
     userId,
     courseId: order.courseId,
   });
 
-  // Increment total enrollments on course
   await Course.increment('totalEnrollments', { where: { id: order.courseId } });
 
   return { enrollment, message: 'Payment verified and enrollment created' };

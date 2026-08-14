@@ -24,6 +24,20 @@ const Cart = () => {
       const { data } = await createOrderAPI(course.id);
       const order = data.data;
 
+      // Mock payment for development
+      if (order.isMock) {
+        await verifyPaymentAPI({
+          razorpayOrderId: order.orderId,
+          razorpayPaymentId: `pay_mock_${Date.now()}`,
+          razorpaySignature: `sig_mock_${Date.now()}`,
+        });
+        dispatch(removeFromCart(course.id));
+        toast.success('Payment successful! Course enrolled.');
+        navigate('/my-courses');
+        return;
+      }
+
+      // Real Razorpay checkout
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: order.amount,
